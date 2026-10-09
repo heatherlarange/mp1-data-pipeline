@@ -10,25 +10,23 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from data_loaders import load_data
-from data_processor import process_data, create_cleaning_report
+
+from src import (
+ create_cleaning_report,
+ load_data,
+ process_data,
+ save_data,
+ setup_logging,
+ validate_dataframe,
+ validate_input,
+)
 
 logger = logging.getLogger(__name__)
-
-def setup_logging(verbose=False):
-    """Configure logging for the pipeline."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)s-8s %(name)s - %(message)s",
-        datefmt="%H:%M:%S",
-        force=True,
-    )
 
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Data processing pipeline: read an input file and write a cleaned output."
+        description="Data processing pipeline: load, validate, clean, and save a dataset."
     )
     parser.add_argument("--input", "-i", required=True, help="Path to the input file")
     parser.add_argument("--config", "-c", required=True, help="Path to the YAML configuration file")
@@ -38,15 +36,6 @@ def parse_arguments():
     )
     return parser.parse_args()
     
-
-def validate_input(filepath):
-    """Check whether the input path exists and is a file."""
-    if not Path(filepath).is_file():
-        logger.error("Input file not found: %s", filepath)
-        return False
-    logger.info("Input file validated: %s", filepath)
-    return True
-
 def main():
     """Main pipeline function."""
     args = parse_arguments()
@@ -70,18 +59,34 @@ def main():
     except ValueError:
         sys.exit(1)
 
+    # Read validation settings from the config
+    required_columns = config["validation"]["required_columns"]
+    numeric_columns = config["validation"]["numeric_columns"]
+    
     df_before = data.copy()
+
+    # Validate before processing
+    try:
+        data = validate_dataframe(data, required_columns, numeric_columns)
+    except ValueError:
+        sys.exit(1)
+    logger.info("Validation complete: %d -> %d rows", len(df_before), len(data))
+
+    # Process the validated data
     try:
         df_after = process_data(data, config)
     except ValueError:
         sys-exit(1)
 
-    report = create_cleaning_report(df_before, df_after)
-    print(report, sort_dicts=False)
     logger.info("Processing complete: %d -> %d rows", len(df_before), len(df_after))
 
-    df_after.to_csv(args.output, index=False)
-    logger.info("Saved cleaned data to %s", args.output)
+    output_path = save_data(df_after, args.output)
+    logger.info("Saved cleaned data to %s", output_path)
+
+    # Cleaning report printed last
+    report = create_cleaning_report(df_before, df_after)
+    print(report, sort_dicts=False)
+
 
 if __name__ == "__main__":
     main()
