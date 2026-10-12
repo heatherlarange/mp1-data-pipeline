@@ -2,13 +2,13 @@
 Data Processing Pipeline - CLI Template
 DS 3500 - MP1
 Usage:
-python pipeline.py --input data.csv --output clean.csv
-python pipeline.py --input data.csv --output results.json --format json --
-verbose
+python pipeline.py --input data.csv --config config/config.yaml --output clean.csv
+python pipeline.py --input data.csv --config config/config.yaml --output clean.csv --verbose
 """
 import argparse
 import logging
 import sys
+from pprint import pprint
 from pathlib import Path
 
 from src import (
@@ -76,7 +76,7 @@ def main():
     try:
         df_after = process_data(data, config)
     except ValueError:
-        sys-exit(1)
+        sys.exit(1)
 
     logger.info("Processing complete: %d -> %d rows", len(df_before), len(df_after))
 
@@ -85,7 +85,7 @@ def main():
 
     # Cleaning report printed last
     report = create_cleaning_report(df_before, df_after)
-    print(report, sort_dicts=False)
+    pprint(report, sort_dicts=False)
 
 
 if __name__ == "__main__":
